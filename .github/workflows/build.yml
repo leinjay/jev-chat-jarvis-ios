@@ -27,7 +27,7 @@ jobs:
       - name: Build App (unsigned)
         run: |
           xcodebuild -project JevJarvis.xcodeproj \
-            -target JevJarvis \
+            -scheme JevJarvis \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             -configuration Release \
@@ -38,7 +38,7 @@ jobs:
       - name: Build Keyboard Extension (unsigned)
         run: |
           xcodebuild -project JevJarvis.xcodeproj \
-            -target JevKeyboard \
+            -scheme JevKeyboard \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             -configuration Release \
