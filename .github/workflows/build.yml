@@ -50,14 +50,23 @@ jobs:
       # An unsigned IPA has no App Group entitlement for it to provision.
       - name: Embed entitlements for sideloading
         run: |
+          set -euo pipefail
           app="build/Build/Products/Release-iphoneos/JevJarvis.app"
           keyboard="$app/PlugIns/JevKeyboard.appex"
-          codesign --force --sign - --entitlements Keyboard/JevKeyboard.entitlements "$keyboard"
-          codesign --force --sign - --entitlements App/JevJarvis.entitlements "$app"
-          codesign --display --entitlements - "$app" > "$RUNNER_TEMP/app-entitlements.plist"
-          codesign --display --entitlements - "$keyboard" > "$RUNNER_TEMP/keyboard-entitlements.plist"
-          /usr/libexec/PlistBuddy -c 'Print :com.apple.security.application-groups:0' "$RUNNER_TEMP/app-entitlements.plist" | grep -Fx 'group.com.jevchat.jarvis'
-          /usr/libexec/PlistBuddy -c 'Print :com.apple.security.application-groups:0' "$RUNNER_TEMP/keyboard-entitlements.plist" | grep -Fx 'group.com.jevchat.jarvis'
+          diagnose() {
+            label="$1"
+            shift
+            if ! output=$("$@" 2>&1); then
+              echo "::error title=$label::${output//$'\n'/ }"
+              exit 1
+            fi
+          }
+          diagnose "Sign keyboard" codesign --force --sign - --entitlements Keyboard/JevKeyboard.entitlements "$keyboard"
+          diagnose "Sign app" codesign --force --sign - --entitlements App/JevJarvis.entitlements "$app"
+          diagnose "Read app entitlements" bash -c 'codesign --display --entitlements - "$1" > "$2"' _ "$app" "$RUNNER_TEMP/app-entitlements.plist"
+          diagnose "Read keyboard entitlements" bash -c 'codesign --display --entitlements - "$1" > "$2"' _ "$keyboard" "$RUNNER_TEMP/keyboard-entitlements.plist"
+          diagnose "Check app group" bash -c '/usr/libexec/PlistBuddy -c "Print :com.apple.security.application-groups:0" "$1" | grep -Fx group.com.jevchat.jarvis' _ "$RUNNER_TEMP/app-entitlements.plist"
+          diagnose "Check keyboard group" bash -c '/usr/libexec/PlistBuddy -c "Print :com.apple.security.application-groups:0" "$1" | grep -Fx group.com.jevchat.jarvis' _ "$RUNNER_TEMP/keyboard-entitlements.plist"
 
       - name: Package into IPA
         run: |
