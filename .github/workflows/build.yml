@@ -63,8 +63,8 @@ jobs:
           }
           diagnose "Sign keyboard" codesign --force --sign - --entitlements Keyboard/JevKeyboard.entitlements "$keyboard"
           diagnose "Sign app" codesign --force --sign - --entitlements App/JevJarvis.entitlements "$app"
-          diagnose "Read app entitlements" bash -c 'codesign --display --entitlements - "$1" > "$2"' _ "$app" "$RUNNER_TEMP/app-entitlements.plist"
-          diagnose "Read keyboard entitlements" bash -c 'codesign --display --entitlements - "$1" > "$2"' _ "$keyboard" "$RUNNER_TEMP/keyboard-entitlements.plist"
+          diagnose "Read app entitlements" bash -c 'codesign --display --entitlements - --xml "$1" > "$2"' _ "$app" "$RUNNER_TEMP/app-entitlements.plist"
+          diagnose "Read keyboard entitlements" bash -c 'codesign --display --entitlements - --xml "$1" > "$2"' _ "$keyboard" "$RUNNER_TEMP/keyboard-entitlements.plist"
           diagnose "Check app group" bash -c '/usr/libexec/PlistBuddy -c "Print :com.apple.security.application-groups:0" "$1" | grep -Fx group.com.jevchat.jarvis' _ "$RUNNER_TEMP/app-entitlements.plist"
           diagnose "Check keyboard group" bash -c '/usr/libexec/PlistBuddy -c "Print :com.apple.security.application-groups:0" "$1" | grep -Fx group.com.jevchat.jarvis' _ "$RUNNER_TEMP/keyboard-entitlements.plist"
 
