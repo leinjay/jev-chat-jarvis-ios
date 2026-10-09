@@ -11,6 +11,7 @@ final class ConfigStore: ObservableObject {
     }
 
     init() {
+        JevStore.migrateLegacyConfigIfNeeded()
         config = JevStore.loadConfig()
         language = JevStore.loadLanguage()
     }

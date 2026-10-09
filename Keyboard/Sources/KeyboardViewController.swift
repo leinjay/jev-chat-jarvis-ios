@@ -387,9 +387,11 @@ final class KeyboardViewController: UIInputViewController {
         let vstack = UIStackView(arrangedSubviews: [guide, btnRow, tonesBtn])
         vstack.axis = .vertical
         vstack.spacing = 8
-        if JevDraft(cfg: cfg).isConfigured {
-            // 配置完整时不占行
-        } else {
+        if !JevStore.groupAvailable {
+            let warn = KB.label(L("⚠️ 键盘无法访问 App Group 共享容器。请检查安装签名中的 App Group 权限。", "⚠️ The keyboard cannot access its App Group container. Check the installed signing entitlements."),
+                                font: .systemFont(ofSize: 12), color: .systemOrange, lines: 0)
+            vstack.addArrangedSubview(warn)
+        } else if !JevDraft(cfg: cfg).isConfigured {
             let warn = KB.label(L("⚠️ 还没配置生成层：打开 Jev Jarvis App →「模型」页填 API Key", "⚠️ Generation is not configured: open Jev Jarvis → Models and add an API key"),
                                 font: .systemFont(ofSize: 12), color: .systemOrange, lines: 0)
             vstack.addArrangedSubview(warn)

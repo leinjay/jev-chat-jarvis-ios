@@ -123,21 +123,36 @@ struct KeyboardStatus: Codable, Equatable {
 /// 配置与状态的唯一存放点。键值放 App Group UserDefaults：
 /// 键盘扩展只有拿到「允许完全访问」后才能读共享容器，正好与联网条件一致。
 enum JevStore {
-    static let appGroupID = "group.com.jevchat.jarvis"
+    private static let originalAppGroupID = "group.com.jevchat.jarvis"
+    /// AltStore 用当前 Team 注册新组，并在主 App 与扩展的 Info.plist 写入 ALTAppGroups。
+    static var appGroupID: String {
+        let groups = Bundle.main.object(forInfoDictionaryKey: "ALTAppGroups") as? [String] ?? []
+        return groups.first { $0 == originalAppGroupID || $0.hasPrefix(originalAppGroupID + ".") }
+            ?? originalAppGroupID
+    }
     private static let configKey = "jev.config.v1"
     private static let removedGenerationBase = "http://101.132.131.220:11111/v1"
     private static let statusKey = "jev.kbstatus.v1"
-    private static let canaryKey = "jev.canary.v1"
 
     static var defaults: UserDefaults {
         UserDefaults(suiteName: appGroupID) ?? .standard
     }
 
-    /// App Group 容器是否真的可写可读（签名没带上 entitlement 时 suite 会静默退化为私有容器）。
-    static var groupWritable: Bool {
-        let stamp = "t\(Date().timeIntervalSince1970)"
-        defaults.set(stamp, forKey: canaryKey)
-        return defaults.string(forKey: canaryKey) == stamp
+    /// 同进程的 UserDefaults 写后读会误报；以系统实际授予的组容器为准。
+    static var groupAvailable: Bool {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID) != nil
+    }
+
+    /// 从旧的未共享 suite 将主 App 配置迁到重签后真正的共享组。
+    /// 只由主 App 启动时调用，避免键盘先写入缺少 Key 的旧配置。
+    static func migrateLegacyConfigIfNeeded() {
+        guard appGroupID != originalAppGroupID, groupAvailable,
+              defaults.data(forKey: configKey) == nil else { return }
+        let oldData = UserDefaults(suiteName: originalAppGroupID)?.data(forKey: configKey)
+            ?? UserDefaults.standard.data(forKey: configKey)
+        guard let data = oldData,
+              (try? JSONDecoder().decode(JevConfig.self, from: data)) != nil else { return }
+        defaults.set(data, forKey: configKey)
     }
 
     static func loadConfig() -> JevConfig {

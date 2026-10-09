@@ -5,7 +5,13 @@ import Combine
 struct SetupView: View {
     @EnvironmentObject private var store: ConfigStore
     @State private var kbStatus: KeyboardStatus?
-    @State private var groupOK = false
+    @State private var groupContainerAvailable = false
+
+    private var keyboardStatusRecent: Bool {
+        guard let lastSeen = kbStatus?.lastSeen else { return false }
+        let age = Date().timeIntervalSince(lastSeen)
+        return age >= 0 && age < 120
+    }
 
     private let timer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
@@ -25,7 +31,7 @@ struct SetupView: View {
 
     private func refresh() {
         kbStatus = JevStore.loadKeyboardStatus()
-        groupOK = JevStore.groupWritable
+        groupContainerAvailable = JevStore.groupAvailable
     }
 
     private var languageSection: some View {
@@ -42,28 +48,34 @@ struct SetupView: View {
 
     private var statusSection: some View {
         Section {
-            row(icon: "keyboard", title: jevLocalized(store.language, zh: "键盘已启用", en: "Keyboard enabled"),
-                ok: kbStatus != nil,
+            row(icon: "keyboard", title: jevLocalized(store.language, zh: "键盘状态回写", en: "Keyboard status"),
+                ok: keyboardStatusRecent,
                 detail: kbStatus.map {
                     jevLocalized(store.language,
-                                 zh: "最近使用：\(timeAgo($0.lastSeen))。若你已移除键盘，这里不会自动变灰——重新添加后在输入框唤起一次即可刷新",
-                                 en: "Last used: \(timeAgo($0.lastSeen)). If you removed the keyboard this won't turn gray by itself — re-add it and open it once in any text field to refresh")
-                } ?? jevLocalized(store.language, zh: "还没检测到键盘被唤起过（在任意输入框里切换到 Jev 键盘即可）", en: "The keyboard has not been opened yet. Switch to Jev in any text field."))
+                                 zh: "最近写入：\(timeAgo($0.lastSeen))。再次唤起键盘可刷新状态。",
+                                 en: "Last write: \(timeAgo($0.lastSeen)). Open the keyboard again to refresh.")
+                } ?? jevLocalized(store.language, zh: "尚未收到键盘状态。若键盘已打开，说明当前安装无法跨进程共享。", en: "No keyboard status received. If the keyboard has opened, this installation cannot share data between processes."))
 
             row(icon: "lock.open", title: jevLocalized(store.language, zh: "允许完全访问", en: "Full Access"),
-                ok: kbStatus?.hasFullAccess == true,
-                detail: kbStatus == nil
+                ok: keyboardStatusRecent && kbStatus?.hasFullAccess == true,
+                detail: !keyboardStatusRecent
                     ? jevLocalized(store.language,
-                                   zh: "还没有键盘状态：先在任意输入框切到 Jev 键盘唤起一次，这里才会显示真实开关状态",
-                                   en: "No keyboard state yet. Switch to the Jev keyboard in any text field once — this row then shows the real switch state.")
+                                   zh: "需要最近的键盘状态：先在任意输入框切到 Jev 键盘唤起一次。",
+                                   en: "Recent keyboard status required. Open Jev in any text field first.")
                     : (kbStatus?.hasFullAccess == true
                         ? jevLocalized(store.language, zh: "已开启：键盘可以联网、读剪贴板", en: "On: the keyboard can use the network and clipboard")
                         : jevLocalized(store.language, zh: "未开启：键盘无法联网和读剪贴板，也不会出候选", en: "Off: the keyboard cannot use the network or clipboard")))
 
-            row(icon: "externaldrive.connected.to.line.below", title: jevLocalized(store.language, zh: "App Group 共享", en: "App Group sharing"),
-                ok: groupOK, detail: groupOK
-                    ? jevLocalized(store.language, zh: "配置可以同步到键盘", en: "Configuration syncs to the keyboard")
-                    : jevLocalized(store.language, zh: "共享容器不可用：请确认用 Xcode 把 App 和键盘扩展签在同一个 Team 下", en: "The shared container is unavailable. Sign both targets with the same Team."))
+            row(icon: "externaldrive.connected.to.line.below", title: jevLocalized(store.language, zh: "App Group 容器", en: "App Group container"),
+                ok: groupContainerAvailable, detail: groupContainerAvailable
+                    ? jevLocalized(store.language, zh: "主 App 可访问：\(JevStore.appGroupID)。还需确认键盘状态更新。", en: "App access granted: \(JevStore.appGroupID). Confirm that keyboard status updates too.")
+                    : jevLocalized(store.language, zh: "当前签名无权访问共享容器：\(JevStore.appGroupID)", en: "The current signature cannot access the shared container: \(JevStore.appGroupID)"))
+
+            row(icon: "arrow.left.arrow.right", title: jevLocalized(store.language, zh: "跨进程共享", en: "Cross-process sharing"),
+                ok: groupContainerAvailable && keyboardStatusRecent,
+                detail: groupContainerAvailable && keyboardStatusRecent
+                    ? jevLocalized(store.language, zh: "已收到键盘最近写入的状态", en: "Recent keyboard status received")
+                    : jevLocalized(store.language, zh: "在输入框唤起 Jev 键盘，再回此页查看最近使用是否更新", en: "Open the Jev keyboard in a text field, then return and check whether Last used updates"))
         } header: {
             Text(jevLocalized(store.language, zh: "状态", en: "Status"))
         } footer: {
