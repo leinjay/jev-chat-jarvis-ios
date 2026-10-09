@@ -5,7 +5,7 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch: # 允许你手动触发
+  workflow_dispatch:
 
 jobs:
   build:
@@ -30,6 +30,8 @@ jobs:
             -target JevJarvis \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
+            -configuration Release \
+            -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             build
 
@@ -39,5 +41,19 @@ jobs:
             -target JevKeyboard \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
+            -configuration Release \
+            -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             build
+
+      - name: Package into IPA
+        run: |
+          mkdir -p Payload
+          cp -r build/Build/Products/Release-iphoneos/JevJarvis.app Payload/
+          zip -r JevJarvis.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: JevJarvis-IPA
+          path: JevJarvis.ipa
